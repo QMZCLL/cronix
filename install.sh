@@ -28,7 +28,17 @@ esac
 ARTIFACT="cronix-linux-${ARCH_SUFFIX}"
 
 echo "Fetching latest release info for ${REPO}..."
-LATEST_TAG="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
+API_RESPONSE="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" 2>&1)" || {
+  echo "error: failed to reach GitHub API. Check your network connection." >&2
+  exit 1
+}
+
+if echo "${API_RESPONSE}" | grep -q '"message".*Not Found\|"message".*no release'; then
+  echo "error: no releases found for ${REPO}. Visit https://github.com/${REPO}/releases" >&2
+  exit 1
+fi
+
+LATEST_TAG="$(echo "${API_RESPONSE}" \
   | grep '"tag_name"' \
   | head -1 \
   | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')"
