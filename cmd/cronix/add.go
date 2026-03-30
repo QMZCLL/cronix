@@ -1,0 +1,109 @@
+package main
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/QMZCLL/cronix/internal/config"
+	"github.com/QMZCLL/cronix/internal/cron"
+	"github.com/QMZCLL/cronix/internal/logger"
+	"github.com/QMZCLL/cronix/internal/task"
+	"github.com/spf13/cobra"
+)
+
+type envFlag []string
+
+func (e *envFlag) String() string {
+	return strings.Join(*e, ",")
+}
+
+func (e *envFlag) Set(value string) error {
+	*e = append(*e, value)
+	return nil
+}
+
+func (e *envFlag) Type() string {
+	return "env"
+}
+
+func newAddCmd() *cobra.Command {
+	var (
+		name        string
+		cronExpr    string
+		command     string
+		description string
+		envs        envFlag
+	)
+
+	cmd := &cobra.Command{
+		Use:   "add",
+		Short: "Add a scheduled task",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := config.Load()
+			if err != nil {
+				return err
+			}
+
+			taskEnvs, err := parseEnvValues(envs)
+			if err != nil {
+				return err
+			}
+
+			scheduledTask := task.Task{
+				Name:        name,
+				CronExpr:    cronExpr,
+				Command:     command,
+				Description: description,
+				Enabled:     true,
+				Envs:        taskEnvs,
+			}
+
+			if err := task.Add(&cfg.Tasks, scheduledTask); err != nil {
+				return err
+			}
+
+			logDir := logger.LogDir(cfg.LogDir)
+			if _, err := cron.WriteWrapper(scheduledTask, wrappersDir(), logDir); err != nil {
+				return err
+			}
+
+			cfg.Tasks = normalizeTasks(cfg.Tasks)
+			if err := cron.SyncToCrontab(cfg.Tasks, wrappersDir()); err != nil {
+				return err
+			}
+			if err := config.Save(cfg); err != nil {
+				return err
+			}
+
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "✓ Task %q added (runs: %s)\n", scheduledTask.Name, scheduledTask.CronExpr)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&name, "name", "", "Task name")
+	cmd.Flags().StringVar(&cronExpr, "cron", "", "Cron expression")
+	cmd.Flags().StringVar(&command, "cmd", "", "Command to run")
+	cmd.Flags().StringVar(&description, "desc", "", "Task description")
+	cmd.Flags().Var(&envs, "env", "Environment variable (KEY=VALUE), may be repeated")
+	_ = cmd.MarkFlagRequired("name")
+	_ = cmd.MarkFlagRequired("cron")
+	_ = cmd.MarkFlagRequired("cmd")
+
+	return cmd
+}
+
+func parseEnvValues(values []string) (map[string]string, error) {
+	if len(values) == 0 {
+		return nil, nil
+	}
+
+	envs := make(map[string]string, len(values))
+	for _, value := range values {
+		key, rawValue, ok := strings.Cut(value, "=")
+		if !ok || key == "" {
+			return nil, fmt.Errorf("invalid env %q: expected KEY=VALUE", value)
+		}
+		envs[key] = rawValue
+	}
+	return envs, nil
+}
