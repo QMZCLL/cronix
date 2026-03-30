@@ -64,6 +64,12 @@ func GenerateWrapper(t task.Task, logDir string) string {
 	sb.WriteString("\n")
 
 	sb.WriteString("echo \"=== Exit: $EXIT_CODE ===\" >> \"$LOG_FILE\"\n")
+	if t.RunOnce {
+		sb.WriteString("if [ \"$EXIT_CODE\" -eq 0 ]; then\n")
+		sb.WriteString("    CRONIX_BIN=$(which cronix 2>/dev/null || echo \"/usr/local/bin/cronix\")\n")
+		sb.WriteString(fmt.Sprintf("    \"$CRONIX_BIN\" disable %s >> \"$LOG_FILE\" 2>&1 || true\n", shellQuote(t.Name)))
+		sb.WriteString("fi\n")
+	}
 	sb.WriteString("exit $EXIT_CODE\n")
 
 	return sb.String()

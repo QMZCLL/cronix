@@ -9,3 +9,19 @@
 - run 操作用异步 Cmd 返回 runResult msg，避免阻塞 TUI 渲染
 - renderListView 读取 m.status/m.statusErr 在 helpText 下方渲染状态行
 - list.go 新增 statusOk/statusErr lipgloss.Style 用于着色状态消息
+
+## cronix add --once 实现 (2026-03-31)
+
+### 修改点
+- `internal/task/types.go`: Task struct 新增 `RunOnce bool \`json:"run_once"\``
+- `internal/task/manager.go`: `ValidateCronExpr` 在字段验证前特判 `@reboot`，直接 return nil
+- `internal/cron/wrapper.go`: `GenerateWrapper` 末尾，若 `t.RunOnce` 为 true，在 EXIT_CODE=0 时调用 `$CRONIX_BIN disable {name}`；用 `which cronix` 定位二进制
+- `cmd/cronix/add.go`: 新增 `--once` bool flag；若设置则 `RunOnce=true`，若未同时给 `--cron` 则默认 `@reboot`
+- `cmd/cronix/list.go`: status 列：Enabled+RunOnce 显示 `once`，只 Enabled 显示 `enabled`
+- `README.md`: 更新 `cronix add` 说明，加入 `--once` flag 和示例
+
+### 约定
+- RunOnce 只在 EXIT_CODE=0 时 disable，避免失败自删
+- disable 而非 remove，保留日志和配置
+- `@reboot` 绕过 5 字段 cron 校验
+- `go test ./...` 全部通过，`make build` 成功

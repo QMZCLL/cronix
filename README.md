@@ -76,13 +76,15 @@ Adds a new scheduled task and registers it with the system crontab.
 
 ```
 cronix add --name <name> --cron <expr> --cmd <command> [flags]
+cronix add --name <name> --once --cmd <command> [flags]
 ```
 
 | Flag | Required | Description |
-|------|----------|-------------|
+|------|----------|--------------|
 | `--name` | yes | Unique task name (used as identifier and log directory name) |
-| `--cron` | yes | Standard 5-field cron expression (e.g. `"0 2 * * *"`) |
+| `--cron` | yes (unless `--once`) | Standard 5-field cron expression (e.g. `"0 2 * * *"`) or `@reboot` |
 | `--cmd` | yes | Shell command to execute |
+| `--once` | no | Run once then auto-disable after successful exit; defaults `--cron` to `@reboot` |
 | `--desc` | no | Human-readable description |
 | `--env KEY=VALUE` | no | Environment variable; repeatable |
 
@@ -91,6 +93,11 @@ cronix add --name <name> --cron <expr> --cmd <command> [flags]
 ```bash
 cronix add --name ping-check --cron "*/5 * * * *" --cmd "ping -c1 8.8.8.8" \
   --env HTTP_PROXY=http://proxy:3128
+```
+
+```bash
+# Run once on next reboot, then auto-disable
+cronix add --name init-setup --once --cmd "/opt/scripts/setup.sh"
 ```
 
 ---

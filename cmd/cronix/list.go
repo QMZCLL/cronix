@@ -51,7 +51,11 @@ func writeTasksTable(cmd *cobra.Command, tasks []task.Task) {
 	for _, scheduledTask := range tasks {
 		status := "disabled"
 		if scheduledTask.Enabled {
-			status = "enabled"
+			if scheduledTask.RunOnce {
+				status = "once"
+			} else {
+				status = "enabled"
+			}
 		}
 		_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", scheduledTask.Name, scheduledTask.CronExpr, status, scheduledTask.Command)
 	}

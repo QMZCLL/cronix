@@ -32,6 +32,7 @@ func newAddCmd() *cobra.Command {
 		cronExpr    string
 		command     string
 		description string
+		runOnce     bool
 		envs        envFlag
 	)
 
@@ -39,6 +40,13 @@ func newAddCmd() *cobra.Command {
 		Use:   "add",
 		Short: "Add a scheduled task",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if !runOnce && !cmd.Flags().Changed("cron") {
+				return fmt.Errorf("required flag \"cron\" not set")
+			}
+			if runOnce && !cmd.Flags().Changed("cron") {
+				cronExpr = "@reboot"
+			}
+
 			cfg, err := config.Load()
 			if err != nil {
 				return err
@@ -55,6 +63,7 @@ func newAddCmd() *cobra.Command {
 				Command:     command,
 				Description: description,
 				Enabled:     true,
+				RunOnce:     runOnce,
 				Envs:        taskEnvs,
 			}
 
@@ -75,7 +84,11 @@ func newAddCmd() *cobra.Command {
 				return err
 			}
 
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "✓ Task %q added (runs: %s)\n", scheduledTask.Name, scheduledTask.CronExpr)
+			if runOnce {
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "✓ Task %q added (runs: once after next reboot)\n", scheduledTask.Name)
+			} else {
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "✓ Task %q added (runs: %s)\n", scheduledTask.Name, scheduledTask.CronExpr)
+			}
 			return nil
 		},
 	}
@@ -84,9 +97,9 @@ func newAddCmd() *cobra.Command {
 	cmd.Flags().StringVar(&cronExpr, "cron", "", "Cron expression")
 	cmd.Flags().StringVar(&command, "cmd", "", "Command to run")
 	cmd.Flags().StringVar(&description, "desc", "", "Task description")
+	cmd.Flags().BoolVar(&runOnce, "once", false, "Run task once then auto-disable (defaults cron to @reboot)")
 	cmd.Flags().Var(&envs, "env", "Environment variable (KEY=VALUE), may be repeated")
 	_ = cmd.MarkFlagRequired("name")
-	_ = cmd.MarkFlagRequired("cron")
 	_ = cmd.MarkFlagRequired("cmd")
 
 	return cmd

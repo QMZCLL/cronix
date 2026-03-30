@@ -70,6 +70,9 @@ func FindByName(tasks []Task, name string) (*Task, error) {
 }
 
 func ValidateCronExpr(expr string) error {
+	if expr == "@reboot" {
+		return nil
+	}
 	fields := strings.Fields(expr)
 	if len(fields) != 5 {
 		return fmt.Errorf("invalid cron expression: expected 5 fields")
