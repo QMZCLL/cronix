@@ -61,6 +61,9 @@ func renderListView(m Model) string {
 		}
 	}
 	lines = append(lines, renderHelpBlock(helpText))
+	if m.daemonWarn != "" {
+		lines = append(lines, renderStatusBlock(m.daemonWarn, true, false))
+	}
 	if m.status != "" {
 		lines = append(lines, renderStatusBlock(m.status, m.statusErr, m.confirming))
 	}

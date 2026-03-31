@@ -62,14 +62,16 @@ type Model struct {
 	status     string
 	statusErr  bool
 	confirming bool
+	daemonWarn string
 	now        time.Time
 }
 
 func NewModel(tasks []task.Task) Model {
 	model := Model{
-		page:  pageList,
-		tasks: normalizeTasks(tasks),
-		now:   time.Now(),
+		page:       pageList,
+		tasks:      normalizeTasks(tasks),
+		daemonWarn: cron.CronDaemonWarning(),
+		now:        time.Now(),
 	}
 
 	if len(model.tasks) == 0 {

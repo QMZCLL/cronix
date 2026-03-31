@@ -96,7 +96,7 @@ cronix tui
 
 ### `cronix init`
 
-初始化 cronix 配置目录（`~/.config/cronix/`），若 `tasks.json` 不存在则创建，并向用户 crontab 注入 cronix 管理块。可以安全地重复执行。
+初始化 cronix 配置目录（`~/.config/cronix/`），若 `tasks.json` 不存在则创建，并向用户 crontab 注入 cronix 管理块。可以安全地重复执行。若检测到当前 Linux 环境里的 `cron`/`crond` 守护进程似乎未运行，会额外输出 warning，提醒“任务已注册但不会按时触发”。
 
 ```bash
 cronix init
@@ -183,17 +183,25 @@ cronix list [--json]
 **输出示例：**
 
 ```
-NAME            CRON          STATUS    COMMAND
-nightly-backup  0 2 * * *     enabled   /usr/local/bin/backup.sh
-ping-check      */5 * * * *   enabled   ping -c1 8.8.8.8
-setup-env       @reboot       once      /opt/scripts/setup.sh
-dl-train        0 3 * * *     disabled  python /workspace/train.py...
+NAME            CRON          STATUS    NEXT             COMMAND
+nightly-backup  0 2 * * *     enabled   tomorrow 02:00  /usr/local/bin/backup.sh
+ping-check      */5 * * * *   enabled   in 4m           ping -c1 8.8.8.8
+setup-env       @reboot       once      @reboot         /opt/scripts/setup.sh
+dl-train        0 3 * * *     disabled  -               python /workspace/train.py...
 ```
 
 状态说明：
 - `enabled` — 已启用，cron 周期正常触发
 - `disabled` — 已禁用，不在 crontab 中
 - `once` — `--once` 任务，成功后自动变为 `disabled`
+
+`NEXT` 列说明：
+- 1 小时内显示为 `in Xm`
+- 当天稍后显示为 `in Xh Ym`
+- 次日显示为 `tomorrow HH:MM`
+- 更远日期显示为 `MM-DD HH:MM`
+
+若检测到 `cron`/`crond` 没有运行，`cronix list` 与 TUI 列表页会显示 warning，但不会阻止 `add`、`run` 等操作。
 
 ---
 

@@ -27,6 +27,7 @@ func newListCmd() *cobra.Command {
 				return writeTasksJSON(cmd, tasks)
 			}
 
+			writeCronDaemonWarning(cmd.OutOrStdout())
 			writeTasksTable(cmd, tasks)
 			return nil
 		},

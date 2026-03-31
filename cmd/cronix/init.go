@@ -40,6 +40,7 @@ func newInitCmd() *cobra.Command {
 			}
 
 			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "✓ Initialized cronix at %s\n", config.ConfigDir())
+			writeCronDaemonWarning(cmd.OutOrStdout())
 			return nil
 		},
 	}

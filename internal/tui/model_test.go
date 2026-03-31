@@ -86,6 +86,16 @@ func TestRenderListView_ShowsCurrentTime(t *testing.T) {
 	}
 }
 
+func TestModelView_ShowsCronDaemonWarning(t *testing.T) {
+	t.Setenv("CRONIX_TEST_CRON_DAEMON", "stopped")
+	model := NewModel([]task.Task{{Name: "backup", CronExpr: "0 * * * *", Enabled: true, Command: "echo short"}})
+
+	view := model.View()
+	if !strings.Contains(view, "cron daemon does not appear to be running") {
+		t.Fatalf("expected cron daemon warning in view, got %q", view)
+	}
+}
+
 func TestModelUpdate_NavigationAndQuit(t *testing.T) {
 	model := NewModel([]task.Task{{Name: "one"}, {Name: "two"}, {Name: "three"}})
 

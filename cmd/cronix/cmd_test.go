@@ -45,6 +45,19 @@ func TestCmdInit_Success(t *testing.T) {
 	}
 }
 
+func TestCmdInit_WarnsWhenCronDaemonStopped(t *testing.T) {
+	setupCLIEnv(t)
+	t.Setenv("CRONIX_TEST_CRON_DAEMON", "stopped")
+
+	stdout, stderr, err := executeCLI(t, nil, "init")
+	if err != nil {
+		t.Fatalf("init failed: %v\nstderr: %s", err, stderr)
+	}
+	if !strings.Contains(stdout, "cron daemon does not appear to be running") {
+		t.Fatalf("expected cron daemon warning, got %q", stdout)
+	}
+}
+
 func TestCmdAdd_Success(t *testing.T) {
 	state := setupCLIEnv(t)
 
@@ -219,6 +232,9 @@ func TestCmdList_WithTasks(t *testing.T) {
 	if !strings.Contains(stdout, "backup") || !strings.Contains(stdout, "enabled") {
 		t.Fatalf("expected enabled task row, got %q", stdout)
 	}
+	if !strings.Contains(stdout, "NEXT") {
+		t.Fatalf("expected NEXT header, got %q", stdout)
+	}
 	if !strings.Contains(stdout, "cleanup") || !strings.Contains(stdout, "disabled") {
 		t.Fatalf("expected disabled task row, got %q", stdout)
 	}
@@ -234,6 +250,20 @@ func TestCmdList_WithTasks(t *testing.T) {
 	}
 	if len(got) != 2 {
 		t.Fatalf("expected 2 tasks in json output, got %d", len(got))
+	}
+}
+
+func TestCmdList_WarnsWhenCronDaemonStopped(t *testing.T) {
+	setupCLIEnv(t)
+	t.Setenv("CRONIX_TEST_CRON_DAEMON", "stopped")
+	seedConfig(t, &config.Config{Tasks: []task.Task{{Name: "backup", CronExpr: "0 * * * *", Command: "echo backup", Enabled: true}}})
+
+	stdout, stderr, err := executeCLI(t, nil, "list")
+	if err != nil {
+		t.Fatalf("list failed: %v\nstderr: %s", err, stderr)
+	}
+	if !strings.Contains(stdout, "cron daemon does not appear to be running") {
+		t.Fatalf("expected cron daemon warning, got %q", stdout)
 	}
 }
 
@@ -487,6 +517,7 @@ func setupCLIEnv(t *testing.T) cliTestState {
 
 	t.Setenv("CRONIX_CONFIG_DIR", configDir)
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("CRONIX_TEST_CRON_DAEMON", "running")
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	writeFakeCrontabBinary(t, state)
 	writeFakeCrontabState(t, state, "")

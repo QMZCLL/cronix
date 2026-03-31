@@ -39,3 +39,10 @@
 - lipgloss 的 `Width()` 会把 padding/border 也算进 frame size，列表这种固定列宽布局里给单元格直接加 padding 很容易把长命令提前换行，测试会先炸出来
 - 终端里“当前项更明显”最好同时用符号和字重/下划线，不要只靠颜色；这次列表选中态和表单焦点都保留了显式 `›` 标记，tmux/capture-pane 里也清楚
 - 日志页适合保留原始内容区域，不要为了美观给 viewport 再套重边框；把层级主要放在页头、任务/日期元信息、帮助区和空状态上，更不容易影响宽高计算
+
+## Task 18: NEXT 相对时间与 cron 守护进程提示
+
+- `task.NextRun` 最稳的是只在一个函数里做时间分段格式化，并把“当前时间”抽成可替换变量，这样 CLI/TUI 共用输出且测试不依赖真实时钟
+- 相对时间若要避免 flaky，分钟和小时都向上取整到分钟边界，比展示秒数更稳定；规则控制在 `in Xm` / `in Xh Ym` / `tomorrow HH:MM` / `MM-DD HH:MM` 就够用了
+- Linux 下检测 cron 守护进程可以直接扫 `/proc/*/{comm,cmdline}` 查 `cron`/`crond`，不需要 `systemctl`、`service` 或任何会修改系统状态的命令
+- 守护进程未运行更适合作为 warning 而不是错误：`init`、`list`、TUI 列表都能提示，但 `add`/`run` 不应被阻断
