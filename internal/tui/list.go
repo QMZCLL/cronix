@@ -11,11 +11,11 @@ import (
 
 const (
 	helpText          = "[a]dd [e]nable [d]isable [r]un [l]ogs [x]delete [q]uit"
-	commandColumnSize = 28
+	commandColumnSize = 25
 	nameColumnSize    = 16
 	cronColumnSize    = 15
 	statusColumnSize  = 10
-	nextColumnSize    = 13
+	nextColumnSize    = 16
 	rowMarkerSize     = 2
 )
 

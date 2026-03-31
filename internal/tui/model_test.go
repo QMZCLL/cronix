@@ -28,7 +28,7 @@ func TestModelView_ShowsTasksAndHelp(t *testing.T) {
 		}
 	}
 
-	if !strings.Contains(view, "python train.py --epochs ...") {
+	if !strings.Contains(view, "python train.py --epoc...") {
 		t.Fatalf("expected truncated command in view, got %q", view)
 	}
 }
@@ -83,6 +83,23 @@ func TestRenderListView_ShowsCurrentTime(t *testing.T) {
 		if !strings.Contains(view, want) {
 			t.Fatalf("expected current date/time fragment %q in view, got %q", want, view)
 		}
+	}
+}
+
+func TestRenderListView_KeepsTomorrowNextRunOnSingleLine(t *testing.T) {
+	model := NewModel([]task.Task{{Name: "backup", CronExpr: "38 17 * * *", Enabled: true, RunOnce: true, Command: "echo success"}})
+	model.width = 140
+	model.now = time.Date(2026, 3, 31, 18, 7, 0, 0, time.Local)
+
+	view := model.View()
+	if !strings.Contains(view, "tomorrow 17:38") {
+		t.Fatalf("expected tomorrow next-run text in view, got %q", view)
+	}
+	if strings.Contains(view, "tomorrow\n") {
+		t.Fatalf("expected next-run text not to wrap, got %q", view)
+	}
+	if strings.Contains(view, "17:38\n") {
+		t.Fatalf("expected time fragment not to be forced onto a new line, got %q", view)
 	}
 }
 
