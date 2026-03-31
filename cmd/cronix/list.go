@@ -47,7 +47,7 @@ func writeTasksJSON(cmd *cobra.Command, tasks []task.Task) error {
 
 func writeTasksTable(cmd *cobra.Command, tasks []task.Task) {
 	tw := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintln(tw, "NAME\tCRON\tSTATUS\tCOMMAND")
+	_, _ = fmt.Fprintln(tw, "NAME\tCRON\tSTATUS\tNEXT\tCOMMAND")
 	for _, scheduledTask := range tasks {
 		status := "disabled"
 		if scheduledTask.Enabled {
@@ -57,7 +57,8 @@ func writeTasksTable(cmd *cobra.Command, tasks []task.Task) {
 				status = "enabled"
 			}
 		}
-		_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", scheduledTask.Name, scheduledTask.CronExpr, status, scheduledTask.Command)
+		next := task.NextRun(scheduledTask)
+		_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", scheduledTask.Name, scheduledTask.CronExpr, status, next, scheduledTask.Command)
 	}
 	_ = tw.Flush()
 }

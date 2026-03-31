@@ -75,6 +75,40 @@ func renderPageHeading(title, subtitle string) string {
 	)
 }
 
+func renderPageHeadingWithClock(title, subtitle, clock string, width int) string {
+	titleLine := tuiStyles.pageTitle.Render(title)
+	if clock != "" {
+		clockStyle := tuiStyles.pageSubtitle.Bold(true)
+		if width > 0 {
+			contentWidth := max(width-4, 0)
+			titleLine = lipgloss.JoinHorizontal(
+				lipgloss.Top,
+				lipgloss.NewStyle().Width(max(contentWidth-lipgloss.Width(clockStyle.Render(clock))-1, 0)).Render(titleLine),
+				clockStyle.Render(clock),
+			)
+		} else {
+			titleLine = lipgloss.JoinHorizontal(lipgloss.Top, titleLine, " ", clockStyle.Render(clock))
+		}
+	}
+
+	if subtitle == "" {
+		return titleLine
+	}
+
+	return lipgloss.JoinVertical(
+		lipgloss.Left,
+		titleLine,
+		tuiStyles.pageSubtitle.Render(subtitle),
+	)
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 func renderHelpBlock(text string) string {
 	return tuiStyles.helpBlock.Render("Keys  " + text)
 }

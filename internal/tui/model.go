@@ -49,6 +49,8 @@ type runResult struct {
 	err      error
 }
 
+type tickMsg time.Time
+
 type Model struct {
 	page       page
 	tasks      []task.Task
@@ -60,12 +62,14 @@ type Model struct {
 	status     string
 	statusErr  bool
 	confirming bool
+	now        time.Time
 }
 
 func NewModel(tasks []task.Task) Model {
 	model := Model{
 		page:  pageList,
 		tasks: normalizeTasks(tasks),
+		now:   time.Now(),
 	}
 
 	if len(model.tasks) == 0 {
@@ -76,11 +80,20 @@ func NewModel(tasks []task.Task) Model {
 }
 
 func (m Model) Init() tea.Cmd {
-	return nil
+	return tickEveryMinute()
+}
+
+func tickEveryMinute() tea.Cmd {
+	return tea.Tick(time.Minute, func(t time.Time) tea.Msg {
+		return tickMsg(t)
+	})
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch typed := msg.(type) {
+	case tickMsg:
+		m.now = time.Time(typed)
+		return m, tickEveryMinute()
 	case tea.WindowSizeMsg:
 		m.width = typed.Width
 		m.height = typed.Height

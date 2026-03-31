@@ -28,7 +28,7 @@ func TestModelView_ShowsTasksAndHelp(t *testing.T) {
 		}
 	}
 
-	if !strings.Contains(view, "python train.py --epochs 10...") {
+	if !strings.Contains(view, "python train.py --epochs ...") {
 		t.Fatalf("expected truncated command in view, got %q", view)
 	}
 }
@@ -70,6 +70,19 @@ func TestRenderListView_ShowsOnceStatus(t *testing.T) {
 	view := model.View()
 	if !strings.Contains(view, "once") {
 		t.Fatalf("expected once status in view, got %q", view)
+	}
+}
+
+func TestRenderListView_ShowsCurrentTime(t *testing.T) {
+	model := NewModel([]task.Task{{Name: "clock-task", CronExpr: "0 * * * *", Enabled: true, Command: "echo now"}})
+	model.width = 120
+	model.now = time.Date(2026, 3, 31, 18, 7, 0, 0, time.Local)
+
+	view := model.View()
+	for _, want := range []string{"2026-03-31", "18:07"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("expected current date/time fragment %q in view, got %q", want, view)
+		}
 	}
 }
 

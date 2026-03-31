@@ -11,10 +11,11 @@ import (
 
 const (
 	helpText          = "[a]dd [e]nable [d]isable [r]un [l]ogs [x]delete [q]uit"
-	commandColumnSize = 30
-	nameColumnSize    = 18
-	cronColumnSize    = 17
+	commandColumnSize = 28
+	nameColumnSize    = 16
+	cronColumnSize    = 15
 	statusColumnSize  = 10
+	nextColumnSize    = 13
 	rowMarkerSize     = 2
 )
 
@@ -47,8 +48,9 @@ var listStyles = struct {
 }
 
 func renderListView(m Model) string {
+	timeStr := m.now.Format("2006-01-02 15:04")
 	lines := []string{
-		renderPageHeading("Cronix tasks", "Inline scheduler overview. Move with ↑/↓ or j/k, then run an action."),
+		renderPageHeadingWithClock("Cronix tasks", "Inline scheduler overview. Move with ↑/↓ or j/k, then run an action.", timeStr, m.width),
 		renderHeader(),
 	}
 	if len(m.tasks) == 0 {
@@ -68,11 +70,12 @@ func renderListView(m Model) string {
 
 func renderHeader() string {
 	return fmt.Sprintf(
-		"%s %s %s %s %s",
+		"%s %s %s %s %s %s",
 		listStyles.idleMarker.Width(rowMarkerSize).Render(""),
 		listStyles.header.Width(nameColumnSize).Render("NAME"),
 		listStyles.header.Width(cronColumnSize).Render("CRON"),
 		listStyles.header.Width(statusColumnSize).Render("STATUS"),
+		listStyles.header.Width(nextColumnSize).Render("NEXT"),
 		listStyles.header.Width(commandColumnSize).Render("COMMAND"),
 	)
 }
@@ -96,9 +99,10 @@ func renderTaskRow(scheduledTask task.Task, selected bool) string {
 	name := nameStyle.Width(nameColumnSize).Render(scheduledTask.Name)
 	cronExpr := rowStyle.Width(cronColumnSize).Render(scheduledTask.CronExpr)
 	status := renderStatus(scheduledTask)
+	next := rowStyle.Width(nextColumnSize).Render(task.NextRun(scheduledTask))
 	command := commandStyle.Width(commandColumnSize).Render(truncateCommand(scheduledTask.Command))
 
-	return fmt.Sprintf("%s %s %s %s %s", marker, name, cronExpr, status, command)
+	return fmt.Sprintf("%s %s %s %s %s %s", marker, name, cronExpr, status, next, command)
 }
 
 func renderStatus(scheduledTask task.Task) string {
