@@ -13,29 +13,35 @@ import (
 )
 
 var logsStyles = struct {
-	header  lipgloss.Style
-	help    lipgloss.Style
-	empty   lipgloss.Style
+	header    lipgloss.Style
+	meta      lipgloss.Style
+	help      lipgloss.Style
+	empty     lipgloss.Style
 	container lipgloss.Style
 }{
-	header:    lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")),
-	help:      lipgloss.NewStyle().Foreground(lipgloss.Color("245")).MarginTop(1),
-	empty:     lipgloss.NewStyle().Foreground(lipgloss.Color("245")).MarginTop(1),
-	container: lipgloss.NewStyle().Padding(verticalPadding, 2),
+	header:    tuiStyles.pageTitle,
+	meta:      tuiStyles.logsMeta,
+	help:      tuiStyles.helpBlock,
+	empty:     tuiStyles.emptyState,
+	container: tuiStyles.container,
 }
 
 const logsHelpText = "[b/esc] back  [p] prev day  [↑/↓] scroll  [pgup/pgdn] page"
 
 func renderLogsView(m Model) string {
 	s := m.logs
-	headerStr := logsStyles.header.Render(
-		fmt.Sprintf("Logs: %s | %s", s.taskName, s.date.Format("2006-01-02")),
+	headerStr := renderPageHeading(
+		"Task logs",
+		fmt.Sprintf("Reviewing execution output without leaving inline mode."),
+	)
+	metaStr := logsStyles.meta.Render(
+		fmt.Sprintf("Task  %s    Date  %s", s.taskName, s.date.Format("2006-01-02")),
 	)
 	vpView := s.viewport.View()
-	helpLine := logsStyles.help.Render(logsHelpText)
+	helpLine := renderHelpBlock(logsHelpText)
 
 	return logsStyles.container.Render(
-		strings.Join([]string{headerStr, vpView, helpLine}, "\n"),
+		strings.Join([]string{headerStr, metaStr, vpView, helpLine}, "\n"),
 	)
 }
 
@@ -60,7 +66,7 @@ func buildLogsState(taskName string, date time.Time, width, height int) logsStat
 
 	if content == "" {
 		vp.SetContent(logsStyles.empty.Render(
-			fmt.Sprintf("No logs for today. Run \"cronix run %s\" to generate.", taskName),
+			fmt.Sprintf("No logs for today.\nRun \"cronix run %s\" to generate output.", taskName),
 		))
 	} else {
 		vp.SetContent(content)

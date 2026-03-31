@@ -10,13 +10,12 @@ import (
 )
 
 const (
-	helpText          = "[e]nable [d]isable [r]un [l]ogs [x]delete [q]uit"
+	helpText          = "[a]dd [e]nable [d]isable [r]un [l]ogs [x]delete [q]uit"
 	commandColumnSize = 30
 	nameColumnSize    = 18
 	cronColumnSize    = 17
 	statusColumnSize  = 10
 	rowMarkerSize     = 2
-	verticalPadding   = 1
 )
 
 var listStyles = struct {
@@ -25,44 +24,43 @@ var listStyles = struct {
 	selectedMarker lipgloss.Style
 	idleMarker     lipgloss.Style
 	cell           lipgloss.Style
+	cellStrong     lipgloss.Style
+	cellMuted      lipgloss.Style
 	selectedRow    lipgloss.Style
 	enabledStatus  lipgloss.Style
 	disabledStatus lipgloss.Style
-	help           lipgloss.Style
+	onceStatus     lipgloss.Style
 	empty          lipgloss.Style
-	statusOk       lipgloss.Style
-	statusErr      lipgloss.Style
 }{
-	container:      lipgloss.NewStyle().Padding(verticalPadding, 2),
-	header:         lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")),
-	selectedMarker: lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Bold(true),
-	idleMarker:     lipgloss.NewStyle().Foreground(lipgloss.Color("8")),
-	cell:           lipgloss.NewStyle().Foreground(lipgloss.Color("252")),
-	selectedRow:    lipgloss.NewStyle().Bold(true),
+	container:      tuiStyles.container,
+	header:         tuiStyles.tableHeader,
+	selectedMarker: tuiStyles.selectedMarker,
+	idleMarker:     tuiStyles.idleMarker,
+	cell:           tuiStyles.tableCell,
+	cellStrong:     tuiStyles.tableCellStrong,
+	cellMuted:      tuiStyles.tableCellMuted,
+	selectedRow:    tuiStyles.selectedRow,
 	enabledStatus:  lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Bold(true),
 	disabledStatus: lipgloss.NewStyle().Foreground(lipgloss.Color("8")),
-	help:           lipgloss.NewStyle().Foreground(lipgloss.Color("245")).MarginTop(1),
-	empty:          lipgloss.NewStyle().Foreground(lipgloss.Color("245")).MarginTop(1),
-	statusOk:       lipgloss.NewStyle().Foreground(lipgloss.Color("10")),
-	statusErr:      lipgloss.NewStyle().Foreground(lipgloss.Color("9")),
+	onceStatus:     lipgloss.NewStyle().Foreground(lipgloss.Color("11")).Bold(true),
+	empty:          tuiStyles.emptyState,
 }
 
 func renderListView(m Model) string {
-	lines := []string{renderHeader()}
+	lines := []string{
+		renderPageHeading("Cronix tasks", "Inline scheduler overview. Move with ↑/↓ or j/k, then run an action."),
+		renderHeader(),
+	}
 	if len(m.tasks) == 0 {
-		lines = append(lines, listStyles.empty.Render("No tasks configured yet."))
+		lines = append(lines, listStyles.empty.Render("No tasks configured yet.\nPress [a] to add your first task."))
 	} else {
 		for idx, scheduledTask := range m.tasks {
 			lines = append(lines, renderTaskRow(scheduledTask, idx == m.cursor))
 		}
 	}
-	lines = append(lines, listStyles.help.Render(helpText))
+	lines = append(lines, renderHelpBlock(helpText))
 	if m.status != "" {
-		if m.statusErr {
-			lines = append(lines, listStyles.statusErr.Render(m.status))
-		} else {
-			lines = append(lines, listStyles.statusOk.Render(m.status))
-		}
+		lines = append(lines, renderStatusBlock(m.status, m.statusErr, m.confirming))
 	}
 
 	return listStyles.container.Render(strings.Join(lines, "\n"))
@@ -88,20 +86,32 @@ func renderTaskRow(scheduledTask task.Task, selected bool) string {
 	}
 
 	marker := markerStyle.Width(rowMarkerSize).Render(markerFor(selected))
-	name := rowStyle.Width(nameColumnSize).Render(scheduledTask.Name)
+	nameStyle := listStyles.cellStrong
+	commandStyle := listStyles.cellMuted
+	if selected {
+		nameStyle = nameStyle.Inherit(listStyles.selectedRow)
+		commandStyle = commandStyle.Inherit(listStyles.selectedRow)
+	}
+
+	name := nameStyle.Width(nameColumnSize).Render(scheduledTask.Name)
 	cronExpr := rowStyle.Width(cronColumnSize).Render(scheduledTask.CronExpr)
-	status := renderStatus(scheduledTask.Enabled)
-	command := rowStyle.Width(commandColumnSize).Render(truncateCommand(scheduledTask.Command))
+	status := renderStatus(scheduledTask)
+	command := commandStyle.Width(commandColumnSize).Render(truncateCommand(scheduledTask.Command))
 
 	return fmt.Sprintf("%s %s %s %s %s", marker, name, cronExpr, status, command)
 }
 
-func renderStatus(enabled bool) string {
+func renderStatus(scheduledTask task.Task) string {
 	statusStyle := listStyles.disabledStatus
 	label := "disabled"
-	if enabled {
+	if scheduledTask.Enabled {
 		statusStyle = listStyles.enabledStatus
-		label = "enabled"
+		if scheduledTask.RunOnce {
+			statusStyle = listStyles.onceStatus
+			label = "once"
+		} else {
+			label = "enabled"
+		}
 	}
 	return statusStyle.Width(statusColumnSize).Render(label)
 }
