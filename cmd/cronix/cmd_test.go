@@ -141,6 +141,52 @@ func TestCmdAdd_WithEnvVars(t *testing.T) {
 	}
 }
 
+func TestCmdAdd_OnceUsesProvidedCronSchedule(t *testing.T) {
+	setupCLIEnv(t)
+
+	stdout, stderr, err := executeCLI(t, nil,
+		"add",
+		"--name", "once-backup",
+		"--cron", "5 4 * * 1",
+		"--cmd", "echo once",
+		"--once",
+	)
+	if err != nil {
+		t.Fatalf("add with once failed: %v\nstderr: %s", err, stderr)
+	}
+	if !strings.Contains(stdout, `✓ Task "once-backup" added (runs: 5 4 * * 1)`) {
+		t.Fatalf("unexpected success output: %q", stdout)
+	}
+
+	cfg := loadConfigForTest(t)
+	if len(cfg.Tasks) != 1 {
+		t.Fatalf("expected 1 task, got %d", len(cfg.Tasks))
+	}
+	if cfg.Tasks[0].CronExpr != "5 4 * * 1" {
+		t.Fatalf("expected configured cron to be preserved, got %q", cfg.Tasks[0].CronExpr)
+	}
+	if !cfg.Tasks[0].RunOnce {
+		t.Fatal("expected run_once to be persisted")
+	}
+}
+
+func TestCmdAdd_OnceStillRequiresCron(t *testing.T) {
+	setupCLIEnv(t)
+
+	_, stderr, err := executeCLI(t, nil,
+		"add",
+		"--name", "once-backup",
+		"--cmd", "echo once",
+		"--once",
+	)
+	if err == nil {
+		t.Fatalf("expected add without cron to fail, stderr=%q", stderr)
+	}
+	if !strings.Contains(err.Error(), `required flag "cron" not set`) {
+		t.Fatalf("expected missing cron error, got %v", err)
+	}
+}
+
 func TestCmdList_Empty(t *testing.T) {
 	setupCLIEnv(t)
 

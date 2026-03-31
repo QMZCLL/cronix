@@ -27,6 +27,33 @@ func Add(tasks *[]Task, scheduledTask Task) error {
 	return nil
 }
 
+func ParseEnvAssignments(values []string) (map[string]string, error) {
+	if len(values) == 0 {
+		return nil, nil
+	}
+
+	envs := map[string]string{}
+	for _, value := range values {
+		for _, segment := range strings.Split(value, ",") {
+			entry := strings.TrimSpace(segment)
+			if entry == "" {
+				continue
+			}
+
+			key, rawValue, ok := strings.Cut(entry, "=")
+			if !ok || key == "" {
+				return nil, fmt.Errorf("invalid env %q: expected KEY=VALUE", entry)
+			}
+			envs[key] = rawValue
+		}
+	}
+
+	if len(envs) == 0 {
+		return nil, nil
+	}
+	return envs, nil
+}
+
 func Remove(tasks *[]Task, name string) error {
 	if tasks == nil {
 		return fmt.Errorf("task: tasks is nil")

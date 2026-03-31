@@ -27,7 +27,7 @@ func withTempCronixConfig(t *testing.T, tasks []task.Task) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("mkdir config dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "config.json"), data, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "tasks.json"), data, 0o644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 }
@@ -232,4 +232,124 @@ func TestOps_HelpText_ContainsDelete(t *testing.T) {
 	if !strings.Contains(helpText, "delete") && !strings.Contains(helpText, "[x]") {
 		t.Fatalf("helpText should mention delete and x key, got: %q", helpText)
 	}
+}
+
+func TestOps_HelpText_ContainsAdd(t *testing.T) {
+	if !strings.Contains(helpText, "[a]") || !strings.Contains(helpText, "dd") {
+		t.Fatalf("helpText should mention add and a key, got: %q", helpText)
+	}
+}
+
+func TestOps_AddSubmit_CreatesTaskFromSplitCronFields(t *testing.T) {
+	stateTasks := []task.Task{{Name: "existing", CronExpr: "0 * * * *", Enabled: true, Command: "echo old"}}
+	withTempCronixConfig(t, stateTasks)
+
+	m := NewModel(stateTasks)
+	updated, _ := m.Update(pressKey('a'))
+	current := updated.(Model)
+
+	setAddInputValue(&current, addFieldName, "report")
+	setAddInputValue(&current, addFieldCommand, "echo report")
+	setAddInputValue(&current, addFieldDescription, "nightly report")
+	setAddInputValue(&current, addFieldMinute, "15")
+	setAddInputValue(&current, addFieldHour, "3")
+	setAddInputValue(&current, addFieldDayOfMonth, "1")
+	setAddInputValue(&current, addFieldMonth, "*")
+	setAddInputValue(&current, addFieldDayOfWeek, "1-5")
+	setAddInputValue(&current, addFieldOnce, "y")
+	setAddInputValue(&current, addFieldEnvs, "FOO=bar,BAR=baz")
+	current.add.focus = addFieldEnvs
+
+	updated, cmd := current.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	final := updated.(Model)
+
+	if final.page != pageList {
+		t.Fatalf("expected successful submit to return to list, got %q", final.page)
+	}
+	if cmd == nil {
+		t.Fatal("expected success status cmd after add submit")
+	}
+	if len(final.tasks) != 2 {
+		t.Fatalf("expected 2 tasks in model after add, got %d", len(final.tasks))
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if len(cfg.Tasks) != 2 {
+		t.Fatalf("expected 2 tasks in config, got %d", len(cfg.Tasks))
+	}
+	added, err := task.FindByName(cfg.Tasks, "report")
+	if err != nil {
+		t.Fatalf("expected added task in config: %v", err)
+	}
+	if added.CronExpr != "15 3 1 * 1-5" {
+		t.Fatalf("expected split cron fields to be assembled, got %q", added.CronExpr)
+	}
+	if !added.RunOnce {
+		t.Fatal("expected run once to be true")
+	}
+	if !added.Enabled {
+		t.Fatal("expected added task to be enabled")
+	}
+	if added.Envs["FOO"] != "bar" || added.Envs["BAR"] != "baz" {
+		t.Fatalf("expected parsed envs, got %#v", added.Envs)
+	}
+
+	wrapperPath := filepath.Join(config.ConfigDir(), "wrappers", "report.sh")
+	wrapperContents, err := os.ReadFile(wrapperPath)
+	if err != nil {
+		t.Fatalf("read wrapper: %v", err)
+	}
+	if !strings.Contains(string(wrapperContents), `"$CRONIX_BIN" disable 'report'`) {
+		t.Fatalf("expected once wrapper to disable task after success, got:\n%s", wrapperContents)
+	}
+	if !strings.Contains(string(wrapperContents), "if [ \"$EXIT_CODE\" -eq 0 ]; then") {
+		t.Fatalf("expected disable to be gated on successful exit, got:\n%s", wrapperContents)
+	}
+	if strings.Contains(string(wrapperContents), "@reboot") {
+		t.Fatalf("did not expect @reboot in wrapper, got:\n%s", wrapperContents)
+	}
+}
+
+func TestOps_AddSubmit_InvalidOnceValue_StaysOnForm(t *testing.T) {
+	withTempCronixConfig(t, nil)
+
+	m := NewModel(nil)
+	updated, _ := m.Update(pressKey('a'))
+	current := updated.(Model)
+
+	setAddInputValue(&current, addFieldName, "bad-once")
+	setAddInputValue(&current, addFieldCommand, "echo hi")
+	setAddInputValue(&current, addFieldOnce, "maybe")
+	current.add.focus = addFieldEnvs
+
+	updated, cmd := current.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	final := updated.(Model)
+
+	if cmd != nil {
+		t.Fatalf("expected nil cmd for inline validation error, got %#v", cmd)
+	}
+	if final.page != pageAdd {
+		t.Fatalf("expected to remain on add page, got %q", final.page)
+	}
+	if !final.statusErr {
+		t.Fatal("expected statusErr on invalid once value")
+	}
+	if !strings.Contains(final.status, "use y or n") {
+		t.Fatalf("expected once validation message, got %q", final.status)
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if len(cfg.Tasks) != 0 {
+		t.Fatalf("expected invalid add not to persist tasks, got %d", len(cfg.Tasks))
+	}
+}
+
+func setAddInputValue(m *Model, field int, value string) {
+	m.add.inputs[field].SetValue(value)
 }

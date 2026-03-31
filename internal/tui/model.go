@@ -24,6 +24,7 @@ type page string
 const (
 	pageList page = "list"
 	pageLogs page = "logs"
+	pageAdd  page = "add"
 
 	statusClearDelay = 3 * time.Second
 )
@@ -54,6 +55,7 @@ type Model struct {
 	cursor     int
 	width      int
 	height     int
+	add        addState
 	logs       logsState
 	status     string
 	statusErr  bool
@@ -107,6 +109,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch m.page {
 		case pageList:
 			return m.updateList(typed)
+		case pageAdd:
+			return m.updateAdd(typed)
 		case pageLogs:
 			return m.updateLogs(typed)
 		}
@@ -123,6 +127,8 @@ func (m Model) updateList(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch key.String() {
 	case "ctrl+c", "q":
 		return m, tea.Quit
+	case "a":
+		return m.enterAddPage()
 	case "up", "k":
 		m.moveCursor(-1)
 	case "down", "j":
@@ -176,6 +182,8 @@ func (m Model) updateLogs(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m Model) View() string {
 	switch m.page {
+	case pageAdd:
+		return renderAddView(m)
 	case pageLogs:
 		return renderLogsView(m)
 	default:

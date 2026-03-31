@@ -33,6 +33,46 @@ func TestModelView_ShowsTasksAndHelp(t *testing.T) {
 	}
 }
 
+func TestModelUpdate_AddPageNavigation(t *testing.T) {
+	model := NewModel([]task.Task{{Name: "one"}})
+
+	updated, cmd := model.Update(pressKey('a'))
+	current := updated.(Model)
+	if current.page != pageAdd {
+		t.Fatalf("expected add page after a key, got %q", current.page)
+	}
+	if current.add.focus != addFieldName {
+		t.Fatalf("expected focus on name field, got %d", current.add.focus)
+	}
+	if cmd == nil {
+		t.Fatal("expected focus cmd when entering add page")
+	}
+
+	updated, _ = current.Update(tea.KeyMsg{Type: tea.KeyTab})
+	current = updated.(Model)
+	if current.add.focus != addFieldCommand {
+		t.Fatalf("expected tab to move focus to command, got %d", current.add.focus)
+	}
+
+	updated, _ = current.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	current = updated.(Model)
+	if current.page != pageList {
+		t.Fatalf("expected esc to return to list, got %q", current.page)
+	}
+	if current.status != "" {
+		t.Fatalf("expected status cleared when leaving add page, got %q", current.status)
+	}
+}
+
+func TestRenderListView_ShowsOnceStatus(t *testing.T) {
+	model := NewModel([]task.Task{{Name: "once-task", CronExpr: "0 * * * *", Enabled: true, RunOnce: true, Command: "echo once"}})
+
+	view := model.View()
+	if !strings.Contains(view, "once") {
+		t.Fatalf("expected once status in view, got %q", view)
+	}
+}
+
 func TestModelUpdate_NavigationAndQuit(t *testing.T) {
 	model := NewModel([]task.Task{{Name: "one"}, {Name: "two"}, {Name: "three"}})
 

@@ -193,3 +193,24 @@ func TestValidateCronPart_InvalidCases(t *testing.T) {
 		}
 	}
 }
+
+func TestParseEnvAssignments(t *testing.T) {
+	envs, err := task.ParseEnvAssignments([]string{"FOO=bar, BAR=baz", "QUX=zip"})
+	if err != nil {
+		t.Fatalf("ParseEnvAssignments() unexpected error: %v", err)
+	}
+	if envs["FOO"] != "bar" {
+		t.Fatalf("expected FOO=bar, got %#v", envs)
+	}
+	if envs["BAR"] != "baz" {
+		t.Fatalf("expected BAR=baz, got %#v", envs)
+	}
+	if envs["QUX"] != "zip" {
+		t.Fatalf("expected QUX=zip, got %#v", envs)
+	}
+
+	_, err = task.ParseEnvAssignments([]string{"INVALID"})
+	if err == nil {
+		t.Fatal("expected invalid env assignment to fail")
+	}
+}

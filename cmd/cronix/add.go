@@ -40,11 +40,8 @@ func newAddCmd() *cobra.Command {
 		Use:   "add",
 		Short: "Add a scheduled task",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !runOnce && !cmd.Flags().Changed("cron") {
+			if !cmd.Flags().Changed("cron") {
 				return fmt.Errorf("required flag \"cron\" not set")
-			}
-			if runOnce && !cmd.Flags().Changed("cron") {
-				cronExpr = "@reboot"
 			}
 
 			cfg, err := config.Load()
@@ -52,7 +49,7 @@ func newAddCmd() *cobra.Command {
 				return err
 			}
 
-			taskEnvs, err := parseEnvValues(envs)
+			taskEnvs, err := task.ParseEnvAssignments(envs)
 			if err != nil {
 				return err
 			}
@@ -84,11 +81,7 @@ func newAddCmd() *cobra.Command {
 				return err
 			}
 
-			if runOnce {
-				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "✓ Task %q added (runs: once after next reboot)\n", scheduledTask.Name)
-			} else {
-				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "✓ Task %q added (runs: %s)\n", scheduledTask.Name, scheduledTask.CronExpr)
-			}
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "✓ Task %q added (runs: %s)\n", scheduledTask.Name, scheduledTask.CronExpr)
 			return nil
 		},
 	}
@@ -97,26 +90,10 @@ func newAddCmd() *cobra.Command {
 	cmd.Flags().StringVar(&cronExpr, "cron", "", "Cron expression")
 	cmd.Flags().StringVar(&command, "cmd", "", "Command to run")
 	cmd.Flags().StringVar(&description, "desc", "", "Task description")
-	cmd.Flags().BoolVar(&runOnce, "once", false, "Run task once then auto-disable (defaults cron to @reboot)")
+	cmd.Flags().BoolVar(&runOnce, "once", false, "Run task on its cron schedule once, then auto-disable after the first successful run")
 	cmd.Flags().Var(&envs, "env", "Environment variable (KEY=VALUE), may be repeated")
 	_ = cmd.MarkFlagRequired("name")
 	_ = cmd.MarkFlagRequired("cmd")
 
 	return cmd
-}
-
-func parseEnvValues(values []string) (map[string]string, error) {
-	if len(values) == 0 {
-		return nil, nil
-	}
-
-	envs := make(map[string]string, len(values))
-	for _, value := range values {
-		key, rawValue, ok := strings.Cut(value, "=")
-		if !ok || key == "" {
-			return nil, fmt.Errorf("invalid env %q: expected KEY=VALUE", value)
-		}
-		envs[key] = rawValue
-	}
-	return envs, nil
 }
